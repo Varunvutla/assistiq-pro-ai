@@ -4,6 +4,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 import streamlit as st
+import requests
+
+from streamlit_oauth import OAuth2Component
 
 from utils.auth import *
 
@@ -18,9 +21,9 @@ from database.db import (
 from utils.ai import generate_response
 from utils.helpers import load_css
 
-# ======================================
+# =========================================
 # PAGE CONFIG
-# ======================================
+# =========================================
 
 st.set_page_config(
     page_title="AssistIQ Pro AI",
@@ -28,16 +31,16 @@ st.set_page_config(
     layout="wide"
 )
 
-# ======================================
+# =========================================
 # DATABASE
-# ======================================
+# =========================================
 
 init_db()
 create_users_table()
 
-# ======================================
+# =========================================
 # SESSION STATE
-# ======================================
+# =========================================
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -51,9 +54,9 @@ if "theme" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# ======================================
+# =========================================
 # THEME
-# ======================================
+# =========================================
 
 theme = st.sidebar.radio(
     "Theme",
@@ -67,9 +70,33 @@ if theme == "Dark":
 else:
     load_css("assets/light.css")
 
-# ======================================
+# =========================================
+# GOOGLE OAUTH
+# =========================================
+
+CLIENT_ID = st.secrets["GOOGLE_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["GOOGLE_CLIENT_SECRET"]
+
+AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/auth"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+REFRESH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+
+REDIRECT_URI = (
+    "https://assistiq-pro-ai-bnqqbtfpnpwdrgffoyzjnp.streamlit.app/"
+    "component/streamlit_oauth.authorize_button/index.html"
+)
+
+oauth2 = OAuth2Component(
+    CLIENT_ID,
+    CLIENT_SECRET,
+    AUTHORIZE_URL,
+    TOKEN_URL,
+    REFRESH_TOKEN_URL
+)
+
+# =========================================
 # LOGIN PAGE
-# ======================================
+# =========================================
 
 if st.session_state.user is None:
 
@@ -98,9 +125,9 @@ if st.session_state.user is None:
         "📝 Register"
     ])
 
-    # ======================================
+    # =========================================
     # LOGIN TAB
-    # ======================================
+    # =========================================
 
     with login_tab:
 
@@ -119,7 +146,8 @@ if st.session_state.user is None:
 
         if st.button(
             "Login",
-            key="normal_login_button"
+            key="normal_login_button",
+            use_container_width=True
         ):
 
             user_data = login_user(
@@ -144,9 +172,9 @@ if st.session_state.user is None:
                     "Invalid email or password"
                 )
 
-    # ======================================
+    # =========================================
     # REGISTER TAB
-    # ======================================
+    # =========================================
 
     with register_tab:
 
@@ -170,7 +198,8 @@ if st.session_state.user is None:
 
         if st.button(
             "Create Account",
-            key="register_button"
+            key="register_button",
+            use_container_width=True
         ):
 
             success = register_user(
@@ -191,28 +220,50 @@ if st.session_state.user is None:
                     "Email already exists"
                 )
 
-    # ======================================
-    # GOOGLE LOGIN MESSAGE
-    # ======================================
+    # =========================================
+    # GOOGLE LOGIN
+    # =========================================
 
     st.markdown("---")
-    st.button(
-    "Continue with Google",
-    disabled=True,
-    use_container_width=True
-)
 
-    st.caption(
-    "Google login will be enabled soon."
-)
+    result = oauth2.authorize_button(
+        name="Continue with Google",
+        icon="https://www.google.com/favicon.ico",
+        redirect_uri=REDIRECT_URI,
+        scope="openid email profile",
+        key="google",
+        use_container_width=True
+    )
 
-    
+    if result and "token" in result:
+
+        token = result["token"]
+
+        userinfo_response = requests.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={
+                "Authorization": f"Bearer {token['access_token']}"
+            }
+        )
+
+        user_info = userinfo_response.json()
+
+        st.session_state.user = {
+            "name": user_info.get("name"),
+            "email": user_info.get("email")
+        }
+
+        st.success(
+            f"Welcome {user_info.get('name')}"
+        )
+
+        st.rerun()
 
     st.stop()
 
-# ======================================
+# =========================================
 # SIDEBAR
-# ======================================
+# =========================================
 
 st.sidebar.title("🤖 AssistIQ Pro AI")
 
@@ -224,9 +275,9 @@ st.sidebar.success(
     f"Welcome {st.session_state.user['name']}"
 )
 
-# ======================================
+# =========================================
 # NEW CHAT
-# ======================================
+# =========================================
 
 if st.sidebar.button(
     "➕ New Chat"
@@ -237,9 +288,9 @@ if st.sidebar.button(
 
     st.rerun()
 
-# ======================================
+# =========================================
 # CLEAR CHAT
-# ======================================
+# =========================================
 
 if st.sidebar.button(
     "🗑 Clear Current Chat"
@@ -251,9 +302,9 @@ if st.sidebar.button(
 
 st.sidebar.markdown("---")
 
-# ======================================
+# =========================================
 # CHAT HISTORY
-# ======================================
+# =========================================
 
 conversations = get_conversations(
     st.session_state.user["email"]
@@ -285,9 +336,9 @@ for conv in conversations:
 
         st.rerun()
 
-# ======================================
+# =========================================
 # LOGOUT
-# ======================================
+# =========================================
 
 st.sidebar.markdown("---")
 
@@ -299,9 +350,9 @@ if st.sidebar.button("🚪 Logout"):
 
     st.rerun()
 
-# ======================================
+# =========================================
 # MAIN CHAT
-# ======================================
+# =========================================
 
 st.title("💬 AI Assistant")
 
@@ -326,9 +377,9 @@ How can I help you today?
         "content": welcome_message
     })
 
-# ======================================
-# SHOW MESSAGES
-# ======================================
+# =========================================
+# SHOW CHAT
+# =========================================
 
 for msg in st.session_state.messages:
 
@@ -336,9 +387,9 @@ for msg in st.session_state.messages:
 
         st.markdown(msg["content"])
 
-# ======================================
+# =========================================
 # CHAT INPUT
-# ======================================
+# =========================================
 
 prompt = st.chat_input(
     "Ask me anything..."
