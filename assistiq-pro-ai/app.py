@@ -68,20 +68,46 @@ else:
     load_css("assets/light.css")
 
 # ======================================
-# GOOGLE AUTH
+# GOOGLE AUTH SAFE CHECK
 # ======================================
 
-user = st.experimental_user
+google_logged_in = False
+google_name = None
+google_email = None
+
+try:
+
+    user = st.experimental_user
+
+    if hasattr(user, "email"):
+
+        if user.email:
+
+            google_logged_in = True
+            google_email = user.email
+
+            if hasattr(user, "name"):
+
+                if user.name:
+                    google_name = user.name
+                else:
+                    google_name = "Google User"
+
+            else:
+                google_name = "Google User"
+
+except:
+    pass
 
 # ======================================
 # HANDLE GOOGLE LOGIN
 # ======================================
 
-if user.is_logged_in:
+if google_logged_in:
 
     st.session_state.user = {
-        "name": user.name if user.name else "Google User",
-        "email": user.email
+        "name": google_name,
+        "email": google_email
     }
 
 # ======================================
@@ -152,6 +178,7 @@ if st.session_state.user is None:
                 }
 
                 st.success("Login successful")
+
                 st.rerun()
 
             else:
@@ -305,8 +332,10 @@ st.sidebar.markdown("---")
 
 if st.sidebar.button("🚪 Logout"):
 
-    if user.is_logged_in:
+    try:
         st.logout()
+    except:
+        pass
 
     st.session_state.user = None
     st.session_state.messages = []
