@@ -232,28 +232,32 @@ if st.session_state.user is None:
         icon="https://www.google.com/favicon.ico",
         redirect_uri=REDIRECT_URI,
         scope="openid email profile",
-        key="google_login"
+        key="google_login",
+        use_container_width=True,
+        pkce='S256',
     )
 
-    if result and "token" in result:
+    if result:
 
-        token = result["token"]["access_token"]
+        if "token" in result:
 
-        user_info = requests.get(
-            "https://www.googleapis.com/oauth2/v1/userinfo",
-            headers={
-                "Authorization": f"Bearer {token}"
+            token = result["token"]["access_token"]
+
+            user_info = requests.get(
+                "https://www.googleapis.com/oauth2/v1/userinfo",
+                headers={
+                    "Authorization": f"Bearer {token}"
+                }
+            ).json()
+
+            st.session_state.user = {
+                "name": user_info.get("name", "Google User"),
+                "email": user_info.get("email", "")
             }
-        ).json()
 
-        st.session_state.user = {
-            "name": user_info.get("name", "Google User"),
-            "email": user_info.get("email", "")
-        }
+            st.success("Google Login Successful")
 
-        st.success("Google Login Successful")
-
-        st.rerun()
+            st.rerun()
 
     st.stop()
 
