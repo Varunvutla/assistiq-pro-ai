@@ -78,7 +78,7 @@ else:
 # ======================================
 
 REDIRECT_URI = (
-    "https://assistiq-pro-ai-vzpppx4gbq2krpnaclz4vm.streamlit.app/"
+    "https://assistiq-pro-ai-pnpwdrgffoyzjnp.streamlit.app/"
     "component/streamlit_oauth.authorize_button/index.html"
 )
 
