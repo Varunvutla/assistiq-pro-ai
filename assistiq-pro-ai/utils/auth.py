@@ -1,11 +1,21 @@
 import sqlite3
 import bcrypt
+from pathlib import Path
 
-DB_NAME = "database/users.db"
+# ======================================
+# DATABASE PATH
+# ======================================
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_NAME = BASE_DIR / "users.db"
+
+# ======================================
+# CREATE USERS TABLE
+# ======================================
 
 def create_users_table():
-    conn = sqlite3.connect(DB_NAME)
+
+    conn = sqlite3.connect(str(DB_NAME))
     c = conn.cursor()
 
     c.execute("""
@@ -13,17 +23,20 @@ def create_users_table():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         email TEXT UNIQUE,
-        password TEXT
+        password BLOB
     )
     """)
 
     conn.commit()
     conn.close()
 
+# ======================================
+# REGISTER USER
+# ======================================
 
 def register_user(name, email, password):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(str(DB_NAME))
     c = conn.cursor()
 
     hashed_password = bcrypt.hashpw(
@@ -32,8 +45,16 @@ def register_user(name, email, password):
     )
 
     try:
+
         c.execute(
-            "INSERT INTO users (name,email,password) VALUES (?,?,?)",
+            """
+            INSERT INTO users (
+                name,
+                email,
+                password
+            )
+            VALUES (?,?,?)
+            """,
             (
                 name,
                 email,
@@ -42,18 +63,24 @@ def register_user(name, email, password):
         )
 
         conn.commit()
+
         return True
 
-    except:
+    except sqlite3.IntegrityError:
+
         return False
 
     finally:
+
         conn.close()
 
+# ======================================
+# LOGIN USER
+# ======================================
 
 def login_user(email, password):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(str(DB_NAME))
     c = conn.cursor()
 
     c.execute(
