@@ -83,7 +83,7 @@ REFRESH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 REDIRECT_URI = (
     "https://assistiq-pro-ai-bnqqbtfpnpwdrgffoyzjnp.streamlit.app/"
-    "component/streamlit_oauth.authorize_button/index.html"
+    "component/streamlit_oauth.authorize_button"
 )
 
 oauth2 = OAuth2Component(
