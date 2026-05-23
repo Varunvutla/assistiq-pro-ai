@@ -196,10 +196,17 @@ if st.session_state.user is None:
     # ======================================
 
     st.markdown("---")
+    st.button(
+    "Continue with Google",
+    disabled=True,
+    use_container_width=True
+)
 
-    st.info(
-        "Google Login is temporarily unavailable."
-    )
+    st.caption(
+    "Google login will be enabled soon."
+)
+
+    
 
     st.stop()
 
