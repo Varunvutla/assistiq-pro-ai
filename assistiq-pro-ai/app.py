@@ -68,49 +68,6 @@ else:
     load_css("assets/light.css")
 
 # ======================================
-# GOOGLE AUTH SAFE CHECK
-# ======================================
-
-google_logged_in = False
-google_name = None
-google_email = None
-
-try:
-
-    user = st.experimental_user
-
-    if hasattr(user, "email"):
-
-        if user.email:
-
-            google_logged_in = True
-            google_email = user.email
-
-            if hasattr(user, "name"):
-
-                if user.name:
-                    google_name = user.name
-                else:
-                    google_name = "Google User"
-
-            else:
-                google_name = "Google User"
-
-except:
-    pass
-
-# ======================================
-# HANDLE GOOGLE LOGIN
-# ======================================
-
-if google_logged_in:
-
-    st.session_state.user = {
-        "name": google_name,
-        "email": google_email
-    }
-
-# ======================================
 # LOGIN PAGE
 # ======================================
 
@@ -235,17 +192,14 @@ if st.session_state.user is None:
                 )
 
     # ======================================
-    # GOOGLE LOGIN
+    # GOOGLE LOGIN MESSAGE
     # ======================================
 
     st.markdown("---")
 
-    if st.button(
-        "Continue with Google",
-        use_container_width=True
-    ):
-
-        st.login()
+    st.info(
+        "Google Login is temporarily unavailable."
+    )
 
     st.stop()
 
@@ -331,11 +285,6 @@ for conv in conversations:
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🚪 Logout"):
-
-    try:
-        st.logout()
-    except:
-        pass
 
     st.session_state.user = None
     st.session_state.messages = []
