@@ -19,14 +19,7 @@ from utils.ai import generate_response
 from utils.helpers import load_css
 
 # ======================================
-# INITIALIZE DATABASE
-# ======================================
-
-init_db()
-create_users_table()
-
-# ======================================
-# STREAMLIT CONFIG
+# PAGE CONFIG
 # ======================================
 
 st.set_page_config(
@@ -34,6 +27,13 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide"
 )
+
+# ======================================
+# DATABASE
+# ======================================
+
+init_db()
+create_users_table()
 
 # ======================================
 # SESSION STATE
@@ -48,6 +48,9 @@ if "conversation_id" not in st.session_state:
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark"
 
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 # ======================================
 # THEME
 # ======================================
@@ -59,36 +62,33 @@ theme = st.sidebar.radio(
 
 st.session_state.theme = theme
 
-# ======================================
-# LOAD CSS
-# ======================================
-
 if theme == "Dark":
     load_css("assets/dark.css")
 else:
     load_css("assets/light.css")
 
 # ======================================
-# GOOGLE LOGIN STATE
+# GOOGLE AUTH
 # ======================================
 
-user_email = None
-user_name = None
+user = st.experimental_user
 
-if st.user.is_logged_in:
+# ======================================
+# HANDLE GOOGLE LOGIN
+# ======================================
 
-    user_email = st.user.email
+if user.is_logged_in:
 
-    if st.user.name:
-        user_name = st.user.name
-    else:
-        user_name = "Google User"
+    st.session_state.user = {
+        "name": user.name if user.name else "Google User",
+        "email": user.email
+    }
 
 # ======================================
 # LOGIN PAGE
 # ======================================
 
-if not st.user.is_logged_in:
+if st.session_state.user is None:
 
     st.markdown(
         """
@@ -139,20 +139,19 @@ if not st.user.is_logged_in:
             key="normal_login_button"
         ):
 
-            user = login_user(
+            user_data = login_user(
                 login_email,
                 login_password
             )
 
-            if user:
+            if user_data:
 
                 st.session_state.user = {
-                    "name": user[1],
-                    "email": user[2]
+                    "name": user_data[1],
+                    "email": user_data[2]
                 }
 
                 st.success("Login successful")
-
                 st.rerun()
 
             else:
@@ -219,23 +218,12 @@ if not st.user.is_logged_in:
         use_container_width=True
     ):
 
-        st.login("google")
+        st.login()
 
     st.stop()
 
 # ======================================
-# GOOGLE USER SESSION
-# ======================================
-
-if st.user.is_logged_in:
-
-    st.session_state.user = {
-        "name": user_name,
-        "email": user_email
-    }
-
-# ======================================
-# CHAT PAGE
+# SIDEBAR
 # ======================================
 
 st.sidebar.title("🤖 AssistIQ Pro AI")
@@ -253,8 +241,7 @@ st.sidebar.success(
 # ======================================
 
 if st.sidebar.button(
-    "➕ New Chat",
-    key="new_chat_button"
+    "➕ New Chat"
 ):
 
     st.session_state.messages = []
@@ -267,8 +254,7 @@ if st.sidebar.button(
 # ======================================
 
 if st.sidebar.button(
-    "🗑 Clear Current Chat",
-    key="clear_chat_button"
+    "🗑 Clear Current Chat"
 ):
 
     st.session_state.messages = []
@@ -311,27 +297,25 @@ for conv in conversations:
 
         st.rerun()
 
-st.sidebar.markdown("---")
-
 # ======================================
 # LOGOUT
 # ======================================
 
-if st.sidebar.button(
-    "🚪 Logout",
-    key="logout_button"
-):
+st.sidebar.markdown("---")
 
-    if st.user.is_logged_in:
+if st.sidebar.button("🚪 Logout"):
+
+    if user.is_logged_in:
         st.logout()
 
+    st.session_state.user = None
     st.session_state.messages = []
     st.session_state.conversation_id = None
 
     st.rerun()
 
 # ======================================
-# MAIN CHAT AREA
+# MAIN CHAT
 # ======================================
 
 st.title("💬 AI Assistant")
