@@ -4,6 +4,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 import streamlit as st
+from streamlit_oauth import OAuth2Component
+import requests
 
 from utils.auth import *
 
@@ -70,6 +72,26 @@ if theme == "Dark":
     load_css("assets/dark.css")
 else:
     load_css("assets/light.css")
+
+# ======================================
+# GOOGLE AUTH
+# ======================================
+
+CLIENT_ID = st.secrets["GOOGLE_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["GOOGLE_CLIENT_SECRET"]
+
+REDIRECT_URI = (
+    "https://assistiq-pro-ai-bnqqbtfpnpwdrgffoyzjnp.streamlit.app/"
+    "component/streamlit_oauth.authorize_button/index.html"
+)
+
+oauth2 = OAuth2Component(
+    CLIENT_ID,
+    CLIENT_SECRET,
+    "https://accounts.google.com/o/oauth2/auth",
+    "https://oauth2.googleapis.com/token",
+    "https://oauth2.googleapis.com/revoke"
+)
 
 # ======================================
 # LOGIN PAGE
@@ -201,9 +223,37 @@ if st.session_state.user is None:
 
     st.markdown("---")
 
-    st.info(
-        "Google Login is temporarily disabled."
+    # ======================================
+    # GOOGLE LOGIN
+    # ======================================
+
+    result = oauth2.authorize_button(
+        name="Continue with Google",
+        icon="https://www.google.com/favicon.ico",
+        redirect_uri=REDIRECT_URI,
+        scope="openid email profile",
+        key="google_login"
     )
+
+    if result and "token" in result:
+
+        token = result["token"]["access_token"]
+
+        user_info = requests.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={
+                "Authorization": f"Bearer {token}"
+            }
+        ).json()
+
+        st.session_state.user = {
+            "name": user_info.get("name", "Google User"),
+            "email": user_info.get("email", "")
+        }
+
+        st.success("Google Login Successful")
+
+        st.rerun()
 
     st.stop()
 
@@ -212,10 +262,6 @@ if st.session_state.user is None:
 # ======================================
 
 else:
-
-    # ======================================
-    # SIDEBAR
-    # ======================================
 
     st.sidebar.title("🤖 AssistIQ Pro AI")
 
@@ -242,7 +288,7 @@ else:
         st.rerun()
 
     # ======================================
-    # CLEAR CURRENT CHAT
+    # CLEAR CHAT
     # ======================================
 
     if st.sidebar.button(
@@ -313,10 +359,6 @@ else:
 
     st.title("💬 AI Assistant")
 
-    # ======================================
-    # WELCOME MESSAGE
-    # ======================================
-
     if len(st.session_state.messages) == 0:
 
         welcome_message = f"""
@@ -326,13 +368,11 @@ I'm AssistIQ Pro AI.
 
 How can I help you today?
 
-You can ask me:
-
-• Coding questions  
-• AI concepts  
-• Resume help  
-• Project ideas  
-• FAQs  
+• Coding questions
+• AI concepts
+• Resume help
+• Project ideas
+• FAQs
 """
 
         st.session_state.messages.append({
@@ -341,7 +381,7 @@ You can ask me:
         })
 
     # ======================================
-    # SHOW CHAT HISTORY
+    # SHOW MESSAGES
     # ======================================
 
     for msg in st.session_state.messages:
@@ -358,13 +398,7 @@ You can ask me:
         "Ask me anything..."
     )
 
-    # ======================================
-    # HANDLE CHAT
-    # ======================================
-
     if prompt:
-
-        # CREATE NEW CONVERSATION
 
         if st.session_state.conversation_id is None:
 
