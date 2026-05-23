@@ -1,0 +1,42 @@
+.stApp {
+    background-color: #0E1117;
+    color: white;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #161B22;
+}
+
+h1, h2, h3 {
+    color: white;
+}
+
+.stButton button {
+
+    background: linear-gradient(
+        90deg,
+        #7B61FF,
+        #6249E6
+    );
+
+    color: white;
+
+    border: none;
+
+    border-radius: 12px;
+
+    height: 45px;
+
+    width: 100%;
+
+    font-weight: bold;
+}
+
+.stChatInput input {
+
+    background-color: #1A1F2B !important;
+
+    color: white !important;
+
+    border-radius: 12px !important;
+}
