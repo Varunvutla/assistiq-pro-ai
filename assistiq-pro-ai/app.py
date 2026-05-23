@@ -4,8 +4,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 import streamlit as st
-from streamlit_oauth import OAuth2Component
-import requests
 
 from utils.auth import *
 
@@ -72,24 +70,6 @@ if theme == "Dark":
     load_css("assets/dark.css")
 else:
     load_css("assets/light.css")
-
-# ======================================
-# GOOGLE AUTH
-# ======================================
-
-REDIRECT_URI = (
-    "https://assistiq-pro-ai-pnpwdrgffoyzjnp.streamlit.app/"
-    "component/streamlit_oauth.authorize_button/index.html"
-)
-
-oauth2 = OAuth2Component(
-    client_id=st.secrets["GOOGLE_CLIENT_ID"],
-    client_secret=st.secrets["GOOGLE_CLIENT_SECRET"],
-    authorize_endpoint="https://accounts.google.com/o/oauth2/auth",
-    token_endpoint="https://oauth2.googleapis.com/token",
-    refresh_token_endpoint="https://oauth2.googleapis.com/token",
-    revoke_token_endpoint="https://oauth2.googleapis.com/revoke",
-)
 
 # ======================================
 # LOGIN PAGE
@@ -221,55 +201,9 @@ if st.session_state.user is None:
 
     st.markdown("---")
 
-    # ======================================
-    # GOOGLE LOGIN UI
-    # ======================================
-
-    st.markdown(
-        """
-        <div style='text-align:center;'>
-        <h4>OR</h4>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.info(
+        "Google Login is temporarily disabled."
     )
-
-    result = oauth2.authorize_button(
-        name="Continue with Google",
-        icon="https://www.google.com/favicon.ico",
-        redirect_uri=REDIRECT_URI,
-        scope="openid email profile",
-        key="google_login_button_unique",
-    )
-
-    # ======================================
-    # GOOGLE LOGIN SUCCESS
-    # ======================================
-
-    if result and "token" in result:
-
-        token = result["token"]["access_token"]
-
-        user_info_response = requests.get(
-            "https://www.googleapis.com/oauth2/v1/userinfo",
-            headers={
-                "Authorization": f"Bearer {token}"
-            }
-        )
-
-        user_info = user_info_response.json()
-
-        user_name = user_info.get("name", "Google User")
-        user_email = user_info.get("email", "")
-
-        st.session_state.user = {
-            "name": user_name,
-            "email": user_email
-        }
-
-        st.success("Google login successful")
-
-        st.rerun()
 
     st.stop()
 
