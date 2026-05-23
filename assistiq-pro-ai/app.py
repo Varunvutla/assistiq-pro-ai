@@ -4,8 +4,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 import streamlit as st
-from streamlit_oauth import OAuth2Component
-import requests
 
 from utils.auth import *
 
@@ -41,9 +39,6 @@ st.set_page_config(
 # SESSION STATE
 # ======================================
 
-if "user" not in st.session_state:
-    st.session_state.user = None
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -74,30 +69,26 @@ else:
     load_css("assets/light.css")
 
 # ======================================
-# GOOGLE AUTH
+# GOOGLE LOGIN STATE
 # ======================================
 
-CLIENT_ID = st.secrets["GOOGLE_CLIENT_ID"]
-CLIENT_SECRET = st.secrets["GOOGLE_CLIENT_SECRET"]
+user_email = None
+user_name = None
 
-REDIRECT_URI = (
-    "https://assistiq-pro-ai-bnqqbtfpnpwdrgffoyzjnp.streamlit.app/"
-    "component/streamlit_oauth.authorize_button/index.html"
-)
+if st.user.is_logged_in:
 
-oauth2 = OAuth2Component(
-    CLIENT_ID,
-    CLIENT_SECRET,
-    "https://accounts.google.com/o/oauth2/auth",
-    "https://oauth2.googleapis.com/token",
-    "https://oauth2.googleapis.com/revoke"
-)
+    user_email = st.user.email
+
+    if st.user.name:
+        user_name = st.user.name
+    else:
+        user_name = "Google User"
 
 # ======================================
 # LOGIN PAGE
 # ======================================
 
-if st.session_state.user is None:
+if not st.user.is_logged_in:
 
     st.markdown(
         """
@@ -118,10 +109,6 @@ if st.session_state.user is None:
     )
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # ======================================
-    # LOGIN / REGISTER TABS
-    # ======================================
 
     login_tab, register_tab = st.tabs([
         "🔐 Login",
@@ -221,151 +208,137 @@ if st.session_state.user is None:
                     "Email already exists"
                 )
 
-    st.markdown("---")
-
     # ======================================
     # GOOGLE LOGIN
     # ======================================
 
-    result = oauth2.authorize_button(
-        name="Continue with Google",
-        icon="https://www.google.com/favicon.ico",
-        redirect_uri=REDIRECT_URI,
-        scope="openid email profile",
-        key="google_login",
-        use_container_width=True,
-        pkce='S256',
-    )
+    st.markdown("---")
 
-    if result:
+    if st.button(
+        "Continue with Google",
+        use_container_width=True
+    ):
 
-        if "token" in result:
-
-            token = result["token"]["access_token"]
-
-            user_info = requests.get(
-                "https://www.googleapis.com/oauth2/v1/userinfo",
-                headers={
-                    "Authorization": f"Bearer {token}"
-                }
-            ).json()
-
-            st.session_state.user = {
-                "name": user_info.get("name", "Google User"),
-                "email": user_info.get("email", "")
-            }
-
-            st.success("Google Login Successful")
-
-            st.rerun()
+        st.login("google")
 
     st.stop()
+
+# ======================================
+# GOOGLE USER SESSION
+# ======================================
+
+if st.user.is_logged_in:
+
+    st.session_state.user = {
+        "name": user_name,
+        "email": user_email
+    }
 
 # ======================================
 # CHAT PAGE
 # ======================================
 
-else:
+st.sidebar.title("🤖 AssistIQ Pro AI")
 
-    st.sidebar.title("🤖 AssistIQ Pro AI")
+st.sidebar.caption(
+    "Your Personal AI Assistant"
+)
 
-    st.sidebar.caption(
-        "Your Personal AI Assistant"
-    )
+st.sidebar.success(
+    f"Welcome {st.session_state.user['name']}"
+)
 
-    st.sidebar.success(
-        f"Welcome {st.session_state.user['name']}"
-    )
+# ======================================
+# NEW CHAT
+# ======================================
 
-    # ======================================
-    # NEW CHAT
-    # ======================================
+if st.sidebar.button(
+    "➕ New Chat",
+    key="new_chat_button"
+):
+
+    st.session_state.messages = []
+    st.session_state.conversation_id = None
+
+    st.rerun()
+
+# ======================================
+# CLEAR CHAT
+# ======================================
+
+if st.sidebar.button(
+    "🗑 Clear Current Chat",
+    key="clear_chat_button"
+):
+
+    st.session_state.messages = []
+
+    st.rerun()
+
+st.sidebar.markdown("---")
+
+# ======================================
+# CHAT HISTORY
+# ======================================
+
+conversations = get_conversations(
+    st.session_state.user["email"]
+)
+
+st.sidebar.subheader("Chat History")
+
+for conv in conversations:
 
     if st.sidebar.button(
-        "➕ New Chat",
-        key="new_chat_button"
+        conv["title"],
+        key=f"conv_{conv['id']}"
     ):
 
+        st.session_state.conversation_id = conv["id"]
+
+        old_messages = get_messages(
+            conv["id"]
+        )
+
         st.session_state.messages = []
-        st.session_state.conversation_id = None
+
+        for msg in old_messages:
+
+            st.session_state.messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
 
         st.rerun()
 
-    # ======================================
-    # CLEAR CHAT
-    # ======================================
+st.sidebar.markdown("---")
 
-    if st.sidebar.button(
-        "🗑 Clear Current Chat",
-        key="clear_chat_button"
-    ):
+# ======================================
+# LOGOUT
+# ======================================
 
-        st.session_state.messages = []
+if st.sidebar.button(
+    "🚪 Logout",
+    key="logout_button"
+):
 
-        st.rerun()
+    if st.user.is_logged_in:
+        st.logout()
 
-    st.sidebar.markdown("---")
+    st.session_state.messages = []
+    st.session_state.conversation_id = None
 
-    # ======================================
-    # CHAT HISTORY
-    # ======================================
+    st.rerun()
 
-    conversations = get_conversations(
-        st.session_state.user["email"]
-    )
+# ======================================
+# MAIN CHAT AREA
+# ======================================
 
-    st.sidebar.subheader("Chat History")
+st.title("💬 AI Assistant")
 
-    for conv in conversations:
+if len(st.session_state.messages) == 0:
 
-        if st.sidebar.button(
-            conv["title"],
-            key=f"conv_{conv['id']}"
-        ):
-
-            st.session_state.conversation_id = conv["id"]
-
-            old_messages = get_messages(
-                conv["id"]
-            )
-
-            st.session_state.messages = []
-
-            for msg in old_messages:
-
-                st.session_state.messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
-
-            st.rerun()
-
-    st.sidebar.markdown("---")
-
-    # ======================================
-    # LOGOUT
-    # ======================================
-
-    if st.sidebar.button(
-        "🚪 Logout",
-        key="logout_button"
-    ):
-
-        st.session_state.user = None
-        st.session_state.messages = []
-        st.session_state.conversation_id = None
-
-        st.rerun()
-
-    # ======================================
-    # MAIN CHAT AREA
-    # ======================================
-
-    st.title("💬 AI Assistant")
-
-    if len(st.session_state.messages) == 0:
-
-        welcome_message = f"""
+    welcome_message = f"""
 👋 Hey {st.session_state.user['name']}!
 
 I'm AssistIQ Pro AI.
@@ -379,72 +352,72 @@ How can I help you today?
 • FAQs
 """
 
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": welcome_message
-        })
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": welcome_message
+    })
 
-    # ======================================
-    # SHOW MESSAGES
-    # ======================================
+# ======================================
+# SHOW MESSAGES
+# ======================================
 
-    for msg in st.session_state.messages:
+for msg in st.session_state.messages:
 
-        with st.chat_message(msg["role"]):
+    with st.chat_message(msg["role"]):
 
-            st.markdown(msg["content"])
+        st.markdown(msg["content"])
 
-    # ======================================
-    # CHAT INPUT
-    # ======================================
+# ======================================
+# CHAT INPUT
+# ======================================
 
-    prompt = st.chat_input(
-        "Ask me anything..."
+prompt = st.chat_input(
+    "Ask me anything..."
+)
+
+if prompt:
+
+    if st.session_state.conversation_id is None:
+
+        title = prompt[:30]
+
+        st.session_state.conversation_id = create_conversation(
+            st.session_state.user["email"],
+            title
+        )
+
+    # USER MESSAGE
+
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
+
+    save_message(
+        st.session_state.conversation_id,
+        "user",
+        prompt
     )
 
-    if prompt:
+    with st.chat_message("user"):
 
-        if st.session_state.conversation_id is None:
+        st.markdown(prompt)
 
-            title = prompt[:30]
+    # AI RESPONSE
 
-            st.session_state.conversation_id = create_conversation(
-                st.session_state.user["email"],
-                title
-            )
+    response = generate_response(prompt)
 
-        # USER MESSAGE
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response
+    })
 
-        st.session_state.messages.append({
-            "role": "user",
-            "content": prompt
-        })
+    save_message(
+        st.session_state.conversation_id,
+        "assistant",
+        response
+    )
 
-        save_message(
-            st.session_state.conversation_id,
-            "user",
-            prompt
-        )
+    with st.chat_message("assistant"):
 
-        with st.chat_message("user"):
-
-            st.markdown(prompt)
-
-        # AI RESPONSE
-
-        response = generate_response(prompt)
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
-
-        save_message(
-            st.session_state.conversation_id,
-            "assistant",
-            response
-        )
-
-        with st.chat_message("assistant"):
-
-            st.markdown(response)
+        st.markdown(response)
